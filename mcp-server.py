@@ -33,41 +33,27 @@ DEVICES = {
     },
 }
 
-
 mcp = FastMCP("Mr-MCP")
 
-def connect(device):
+
+def connect(device: str) -> ConnectHandler:
     """
-    Open a connection to my device with Netmiko
+    Open a connection to a device with Netmiko
     """
     if device not in DEVICES:
-        raise ValueError("Unknown Device")
+        raise ValueError(f"Unknown device: {device}")
     return ConnectHandler(**DEVICES[device])
 
+
 @mcp.tool()
-def list_devices():
+def list_devices() -> list[dict]:
     """
     List all the devices in the network topology
     """
-    devices = []
-    for device_name, device_info in DEVICES.items():
-        device_dict = {
-            "name": device_name,
-            "host": device_info["host"],
-            "type": device_info["device_type"]
-        }
-        devices.append(device_dict)
-    return devices
-
-@mcp.tool()
-def run_show_command(device_name, command):
-    """
-    Run a show command against a device in the topology using Netmiko
-    """
-    conn = connect(device_name)
-    result = conn.send_command(command)
-    conn.disconnect()
-    return result
+    return [
+        {"name": name, "host": info["host"], "type": info["device_type"]}
+        for name, info in DEVICES.items()
+    ]
 
 
 @mcp.tool()
@@ -76,15 +62,27 @@ def run_show_command(device_name: str, command: str) -> str:
     Run a show command against a device in the topology using Netmiko
     """
     conn = connect(device_name)
-    commands = []
-    lines = config.splitlines()
-    for line in lines:
-        if line != "":
-            commands.append(line)
-    result = conn.send_config_set(commands)
-    conn.save_config()
-    conn.disconnect()
-    return result
+    try:
+        return conn.send_command(command)
+    finally:
+        conn.disconnect()
+
+
+@mcp.tool()
+def run_config_commands(device_name: str, config: str) -> str:
+    """
+    Push configuration lines to a device in the topology using Netmiko.
+    `config` is a newline-separated block of IOS configuration commands.
+    """
+    conn = connect(device_name)
+    try:
+        commands = [line for line in config.splitlines() if line.strip()]
+        conn.enable()
+        result = conn.send_config_set(commands)
+        conn.save_config()
+        return result
+    finally:
+        conn.disconnect()
 
 
 if __name__ == "__main__":
