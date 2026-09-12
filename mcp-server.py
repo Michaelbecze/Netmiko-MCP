@@ -1,5 +1,4 @@
 import os
-
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from netmiko import ConnectHandler
@@ -72,9 +71,9 @@ def run_show_command(device_name, command):
 
 
 @mcp.tool()
-def make_configuration_changes(device_name, config):
+def run_show_command(device_name: str, command: str) -> str:
     """
-    Send configuration changes to the device using Netmiko
+    Run a show command against a device in the topology using Netmiko
     """
     conn = connect(device_name)
     commands = []
